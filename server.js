@@ -346,18 +346,17 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const users = loadJSON(USERS_FILE);
-            const user = users.users[id];
+            const user = await getUserFromDB(id);
 
-            if (!user || !user.passwordHash) {
-                sendJSON(res, 401, {
-                    error: "ユーザーIDまたはパスワードが正しくありません"
-                });
-                return;
-            }
+if (!user || !user.passwordHash) {
+    sendJSON(res, 401, {
+        error: "ユーザーIDまたはパスワードが正しくありません"
+    });
+    return;
+}
 
-            const passwordOK =
-                await bcrypt.compare(password, user.passwordHash);
+const passwordOK =
+    await bcrypt.compare(password, user.passwordHash);
 
             if (!passwordOK) {
                 sendJSON(res, 401, {
