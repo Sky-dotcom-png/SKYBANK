@@ -287,25 +287,33 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const users = loadJSON(USERS_FILE);
+           const existingUser = await getUserFromDB(id);
 
-            if (users.users[id]) {
-                sendJSON(res, 409, {
-                    error: "そのユーザーIDは既に使用されています"
-                });
-                return;
-            }
+if (existingUser) {
+    sendJSON(res, 409, {
+        error: "そのユーザーIDは既に使用されています"
+    });
+    return;
+}
 
             const passwordHash = await bcrypt.hash(password, 12);
 
-            users.users[id] = {
-    passwordHash: passwordHash,
-    role: "user",
-    savings: 0,
-    fixedDeposit: 0
-};
-
-            saveJSON(USERS_FILE, users);
+            await pool.query(
+    `
+    INSERT INTO users
+        (id, password_hash, role, savings, fixed_deposit, interest)
+    VALUES
+        ($1, $2, $3, $4, $5, $6)
+    `,
+    [
+        id,
+        passwordHash,
+        "user",
+        0,
+        0,
+        null
+    ]
+);
 
             sendJSON(res, 201, {
                 message: "アカウントを作成しました",
