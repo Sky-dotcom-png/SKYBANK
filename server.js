@@ -18,6 +18,27 @@ const REQUESTS_FILE = "./requests.json";
 
 // メモリ上のログインセッション
 const sessions = new Map();
+async function getUserFromDB(userId) {
+    const result = await pool.query(
+        "SELECT * FROM users WHERE id = $1",
+        [userId]
+    );
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    const row = result.rows[0];
+
+    return {
+        passwordHash: row.password_hash,
+        role: row.role,
+        savings: row.savings,
+        fixedDeposit: row.fixed_deposit,
+        interest: row.interest
+    };
+}
+
 async function initDatabase() {
     try {
         await pool.query(`
