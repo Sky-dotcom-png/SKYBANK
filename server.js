@@ -468,12 +468,14 @@ if (
             return;
         }
 
-        const users = loadJSON(USERS_FILE);
-const user = users.users[userId];
+        const user = await getUserFromDB(userId);
 
-applyInterest(user);
-
-saveJSON(USERS_FILE, users);
+if (!user) {
+    sendJSON(res, 404, {
+        error: "ユーザーが存在しません"
+    });
+    return;
+}
 
 sendJSON(res, 200, {
     id: userId,
