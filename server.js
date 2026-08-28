@@ -3,6 +3,14 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const { Pool } = require("pg");
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 const CONFIG_FILE = "./config.json";
 const USERS_FILE = "./users.json";
@@ -10,6 +18,36 @@ const REQUESTS_FILE = "./requests.json";
 
 // メモリ上のログインセッション
 const sessions = new Map();
+async function initDatabase() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                savings INTEGER NOT NULL DEFAULT 0,
+                fixed_deposit INTEGER NOT NULL DEFAULT 0,
+                interest JSONB
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS requests (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                processed_at TIMESTAMPTZ
+            );
+        `);
+
+        console.log("PostgreSQL connected and tables ready");
+    } catch (error) {
+        console.error("PostgreSQL initialization failed:", error);
+    }
+}
 
 function loadJSON(file) {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -904,6 +942,8 @@ sendJSON(res, 200, {
 });
 
 });
+
+initDatabase();
 
 server.listen(3000, () => {
     console.log(
