@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKYBANK</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            color: #222;
+        }
+
+        header {
+            background: #1f4f8f;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        main {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .balance {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #1f4f8f;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .secondary {
+            background: #777;
+        }
+
+        .disabled-message {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 16px;
+        }
+
+        .error {
+            color: #c62828;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    SKYBANK
+</header>
+
+<!-- 管理者ログイン -->
+<div id="adminLoginPage" class="card hidden">
+
+    <h2>管理者ログイン</h2>
+
+    <label>管理者ID</label>
+    <input id="adminLoginId" type="text">
+
+    <label>パスワード</label>
+    <input id="adminLoginPassword" type="password">
+
+    <button onclick="adminLogin()">
+        管理者ログイン
+    </button>
+
+    <button class="secondary" onclick="showLogin()">
+        戻る
+    </button>
+
+    <div id="adminLoginError" class="error"></div>
+
+</div>
+
+
+<!-- 管理者画面 -->
+<div id="adminPage" class="card hidden">
+
+    <h2>SKYBANK 管理者画面</h2>
+
+    <!-- 金利設定 -->
+    <div class="card">
+
+        <h3>金利設定</h3>
+
+        <div id="currentInterestConfig">
+            現在の設定を読み込んでいます...
+        </div>
+
+        <label>
+            金利（%）
+            <input
+                type="number"
+                id="interestRateInput"
+                min="0"
+                step="0.1"
+            >
+        </label>
+
+        <label>
+            付与間隔（日）
+            <input
+                type="number"
+                id="interestIntervalInput"
+                min="1"
+                step="1"
+            >
+        </label>
+
+        <button onclick="updateInterestConfig()">
+            金利設定を変更
+        </button>
+
+        <div id="interestConfigMessage"></div>
+
+    </div>
+
+    <!-- 申請一覧 -->
+    <div class="card">
+
+        <h3>入出金申請</h3>
+
+        <div id="adminRequests">
+            申請を読み込んでいます...
+        </div>
+
+    </div>
+
+    <button class="secondary" onclick="adminLogout()">
+        管理者ログアウト
+    </button>
+
+</div>
+
+<main>
+
+    <!-- ログイン -->
+    <div id="loginPage" class="card">
+
+        <h2>ログイン</h2>
+
+        <label>ユーザーID</label>
+        <input id="loginId" type="text">
+
+        <label>パスワード</label>
+        <input id="loginPassword" type="password">
+
+        <button onclick="login()">
+            ログイン
+        </button>
+
+        <button class="secondary" onclick="showRegister()">
+            新規登録
+        </button>
+<button class="secondary" onclick="showAdminLogin()">
+    管理者ログイン
+</button>
+        <div id="loginError" class="error"></div>
+
+    </div>
+
+
+    <!-- 新規登録 -->
+    <div id="registerPage" class="card hidden">
+
+        <h2>新規登録</h2>
+
+        <label>ユーザーID</label>
+        <input id="registerId" type="text">
+
+        <label>パスワード</label>
+        <input id="registerPassword" type="password">
+
+        <button onclick="register()">
+            アカウント作成
+        </button>
+
+        <button class="secondary" onclick="showLogin()">
+            戻る
+        </button>
+
+        <div id="registerError" class="error"></div>
+
+    </div>
+
+
+    <!-- マイページ -->
+    <div id="mypage" class="hidden">
+
+    <div class="card">
+
+        <h2 id="welcomeMessage">ようこそ、さん！</h2>
+
+        <h2>普通預金</h2>
+<div id="pendingMessage" class="hidden">
+    <p id="pendingText"></p>
+</div>
+            <div class="balance">
+                ¥<span id="savings">0</span>
+            </div>
+
+            <button id="depositButton" onclick="showDeposit()">
+    預金する
+</button>
+
+<button id="withdrawButton" onclick="showWithdraw()">
+    引き出す
+</button>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>定期預金</h2>
+
+            <button onclick="showFixedDeposit()">
+                定期預金
+            </button>
+
+        </div>
+
+
+        <button class="secondary" onclick="logout()">
+            ログアウト
+        </button>
+
+    </div>
+
+
+    <!-- 定期預金利用不可 -->
+    <div id="fixedDepositPage" class="card hidden">
+
+        <div class="disabled-message">
+
+            <h2>定期預金</h2>
+
+            <p>
+                現在、定期預金はご利用になれません。
+            </p>
+
+            <button onclick="showMypage()">
+                戻る
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- 預金 -->
+    <div id="depositPage" class="card hidden">
+
+        <h2>預金申請</h2>
+
+        <p>預金申請後、ゲーム内で取引を行ってください。
+        </p>
+
+        <input
+            id="depositAmount"
+            type="number"
+            min="1"
+            placeholder="金額"
+        >
+
+        <button onclick="deposit()">
+            預金申請
+        </button>
+
+        <button class="secondary" onclick="showMypage()">
+            戻る
+        </button>
+
+        <div id="depositMessage"></div>
+
+    </div>
+
+
+    <!-- 引き出し -->
+    <div id="withdrawPage" class="card hidden">
+
+        <h2>引き出し申請</h2>
+
+        <p>
+            普通預金から引き出す金額を入力してください。
+        </p>
+
+        <input
+            id="withdrawAmount"
+            type="number"
+            min="1"
+            placeholder="金額"
+        >
+
+        <button onclick="withdraw()">
+            引き出し申請
+        </button>
+
+        <button class="secondary" onclick="showMypage()">
+            戻る
+        </button>
+
+        <div id="withdrawMessage"></div>
+
+    </div>
+
+</main>
+
+
+<script>
+
+let token = localStorage.getItem("skybankToken");
+let adminToken = null;
+
+function hideAll() {
+
+    document
+        .querySelectorAll("main > div")
+        .forEach(element => {
+            element.classList.add("hidden");
+        });
+}
+
+function showLogin() {
+    hideAll();
+    document
+        .getElementById("loginPage")
+        .classList.remove("hidden");
+}
+
+function showRegister() {
+    hideAll();
+    document
+        .getElementById("registerPage")
+        .classList.remove("hidden");
+}
+
+function showMypage() {
+    hideAll();
+    document
+        .getElementById("mypage")
+        .classList.remove("hidden");
+
+    loadAccount();
+}
+
+function showFixedDeposit() {
+    hideAll();
+
+    document
+        .getElementById("fixedDepositPage")
+        .classList.remove("hidden");
+}
+
+function showDeposit() {
+    hideAll();
+
+    document
+        .getElementById("depositPage")
+        .classList.remove("hidden");
+}
+
+function showWithdraw() {
+    hideAll();
+
+    document
+        .getElementById("withdrawPage")
+        .classList.remove("hidden");
+}
+
+
+// =========================
+// 新規登録
+// =========================
+
+async function register() {
+
+    const id =
+        document.getElementById("registerId").value;
+
+    const password =
+        document.getElementById("registerPassword").value;
+
+    const response = await fetch("/api/register", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            id: id,
+            password: password
+        })
+
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+        document
+            .getElementById("registerError")
+            .textContent = data.error;
+
+        return;
+    }
+
+    alert("アカウントを作成しました");
+
+    showLogin();
+}
+
+
+// =========================
+// 管理者ログイン画面
+// =========================
+
+function showAdminLogin() {
+
+    hideAll();
+
+    document
+        .getElementById("adminLoginPage")
+        .classList.remove("hidden");
+}
+
+// =========================
+// 管理者ログイン
+// =========================
+
+async function adminLogin() {
+
+    const id =
+        document.getElementById("adminLoginId").value;
+
+    const password =
+        document.getElementById("adminLoginPassword").value;
+
+    const response = await fetch("/api/admin/login", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            id: id,
+            password: password
+        })
+
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+        document
+            .getElementById("adminLoginError")
+            .textContent = data.error;
+
+        return;
+    }
+
+    adminToken = data.token;
+
+    localStorage.setItem(
+        "skybankAdminToken",
+        adminToken
+    );
+
+    showAdminPage();
+}
+
+// =========================
+// 管理者：申請一覧
+// =========================
+
+async function loadAdminRequests() {
+
+    const response = await fetch(
+        "/api/admin/requests",
+        {
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+        document
+            .getElementById("adminRequests")
+            .textContent = data.error;
+
+        return;
+    }
+
+    const container =
+        document.getElementById("adminRequests");
+
+    container.innerHTML = "";
+
+    const requests =
+    Object.entries(data.requests).map(
+        ([requestId, request]) => ({
+            requestId: requestId,
+            ...request
+        })
+    );
+
+    if (requests.length === 0) {
+
+        container.textContent =
+            "申請はありません。";
+
+        return;
+    }
+
+    requests.forEach(request => {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "card";
+
+        div.innerHTML = `
+            <p>
+                <strong>${request.requestId}</strong>
+            </p>
+
+            <p>
+                ユーザー：${request.userId}
+            </p>
+
+            <p>
+                種類：
+                ${request.type === "deposit"
+                    ? "預金"
+                    : "引き出し"}
+            </p>
+
+            <p>
+                金額：
+                ¥${request.amount.toLocaleString()}
+            </p>
+
+            <p>
+                状態：
+                ${request.status}
+            </p>
+
+            ${
+                request.status === "pending"
+                ? `
+                    <button onclick="processRequest('${request.requestId}', 'approve')">
+                        承認
+                    </button>
+
+                    <button
+                        class="secondary"
+                        onclick="processRequest('${request.requestId}', 'reject')">
+                        却下
+                    </button>
+                  `
+                : ""
+            }
+        `;
+
+        container.appendChild(div);
+    });
+}
+
+// =========================
+// 管理者画面
+// =========================
+
+function showAdminPage() {
+
+    hideAll();
+
+    document
+        .getElementById("adminPage")
+        .classList.remove("hidden");
+
+    loadAdminRequests();
+    loadInterestConfig();
+}
+
+// =========================
+// 管理者：金利設定を変更
+// =========================
+
+async function updateInterestConfig() {
+
+    const rate =
+        Number(
+            document.getElementById("interestRateInput").value
+        );
+
+    const intervalDays =
+        Number(
+　　　　　　document.getElementById("interestIntervalInput").value
+        );
+
+
+    if (
+        !Number.isFinite(rate) ||
+        rate < 0
+    ) {
+        document
+            .getElementById("interestConfigMessage")
+            .textContent =
+                "金利を正しく入力してください";
+        return;
+    }
+
+    if (
+        !Number.isInteger(intervalDays) ||
+        intervalDays <= 0
+    ) {
+        document
+            .getElementById("interestConfigMessage")
+            .textContent =
+                "付与間隔を正しく入力してください";
+        return;
+    }
+
+    const response = await fetch(
+        "/api/admin/interest-config",
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + adminToken
+            },
+
+            body: JSON.stringify({
+                interestRate: rate / 100,
+                interestIntervalDays: intervalDays
+            })
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        document
+            .getElementById("interestConfigMessage")
+            .textContent =
+                data.error;
+        return;
+    }
+
+    document
+        .getElementById("interestConfigMessage")
+        .textContent =
+            "金利設定を変更しました";
+
+    loadInterestConfig();
+}
+
+// =========================
+// 管理者：現在の金利設定を取得
+// =========================
+
+async function loadInterestConfig() {
+
+    const response = await fetch(
+        "/api/admin/interest-config",
+        {
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        document
+            .getElementById("currentInterestConfig")
+            .textContent = data.error;
+        return;
+    }
+
+    document
+        .getElementById("currentInterestConfig")
+        .textContent =
+            `現在の金利：${data.interestRate * 100}% / ${data.interestIntervalDays}日ごと`;
+
+    document
+        .getElementById("interestRateInput")
+        .value =
+            data.interestRate * 100;
+
+    document
+        .getElementById("interestIntervalInput")
+        .value =
+            data.interestIntervalDays;
+}
+
+// =========================
+// 管理者：金利設定保存
+// =========================
+
+async function updateInterestConfig() {
+
+    const rate =
+    Number(
+        document.getElementById(
+            "interestRateInput"
+        ).value
+    );
+
+const intervalDays =
+    Number(
+        document.getElementById(
+            "interestIntervalInput"
+        ).value
+    );
+
+    const response = await fetch(
+        "/api/admin/interest-config",
+        {
+            method: "POST",
+
+            headers: {
+                "Authorization":
+                    "Bearer " + adminToken,
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                interestRate: rate / 100,
+                interestIntervalDays:
+                    intervalDays
+            })
+        }
+    );
+
+    const data = await response.json();
+
+    document
+        .getElementById(
+            "interestConfigMessage"
+        )
+        .textContent =
+        data.message || data.error;
+}
+
+// =========================
+// 管理者：申請処理
+// =========================
+
+async function processRequest(requestId, action) {
+
+    const response = await fetch(
+        "/api/admin/request",
+        {
+            method: "POST",
+
+            headers: {
+                "Authorization": "Bearer " + adminToken,
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                requestId: requestId,
+                action: action
+            })
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        alert(data.error);
+        return;
+    }
+
+    alert(data.message);
+
+    loadAdminRequests();
+}
+
+
+// =========================
+// 管理者ログアウト
+// =========================
+
+function adminLogout() {
+
+    adminToken = null;
+
+    showLogin();
+}
+
+// =========================
+// ログイン
+// =========================
+
+async function login() {
+
+    const id =
+        document.getElementById("loginId").value;
+
+    const password =
+        document.getElementById("loginPassword").value;
+
+    const response = await fetch("/api/login", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            id: id,
+            password: password
+        })
+
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+        document
+            .getElementById("loginError")
+            .textContent = data.error;
+
+        return;
+    }
+
+    token = data.token;
+
+    localStorage.setItem(
+        "skybankToken",
+        token
+    );
+
+    showMypage();
+}
+
+
+// =========================
+// 口座情報
+// =========================
+
+async function loadAccount() {
+
+    const response = await fetch("/api/me", {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    });
+
+    if (!response.ok) {
+        logout();
+        return;
+    }
+
+    const data = await response.json();
+
+    document.getElementById("welcomeMessage").textContent =
+        `ようこそ、${data.id}さん！`;
+
+    document.getElementById("savings").textContent =
+        data.savings.toLocaleString();
+
+    // =========================
+    // 自分の申請状況を取得
+    // =========================
+
+    const requestResponse = await fetch(
+        "/api/my-requests",
+        {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        }
+    );
+
+    if (!requestResponse.ok) {
+        return;
+    }
+
+    const requestData = await requestResponse.json();
+
+    const pendingRequest =
+        requestData.requests.find(
+            request => request.status === "pending"
+        );
+
+    const pendingMessage =
+        document.getElementById("pendingMessage");
+
+    const pendingText =
+        document.getElementById("pendingText");
+
+    if (pendingRequest) {
+
+    const type =
+        pendingRequest.type === "deposit"
+            ? "預金"
+            : "引き出し";
+
+    pendingText.textContent =
+        `⏳ ${type}申請 ￥${pendingRequest.amount.toLocaleString()}　承認待ち`;
+
+    pendingMessage.classList.remove("hidden");
+
+    document.getElementById("depositButton").disabled = true;
+    document.getElementById("withdrawButton").disabled = true;
+
+} else {
+
+    pendingMessage.classList.add("hidden");
+
+    document.getElementById("depositButton").disabled = false;
+    document.getElementById("withdrawButton").disabled = false;
+}
+}
+
+// =========================
+// 預金
+// =========================
+
+async function deposit() {
+
+    const amount =
+        Number(
+            document.getElementById("depositAmount").value
+        );
+
+    const response = await fetch("/api/deposit", {
+
+        method: "POST",
+
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            amount: amount
+        })
+
+    });
+
+    const data = await response.json();
+
+    document
+        .getElementById("depositMessage")
+        .textContent =
+        data.message || data.error;
+}
+
+
+// =========================
+// 引き出し
+// =========================
+
+async function withdraw() {
+
+    const amount =
+        Number(
+            document.getElementById("withdrawAmount").value
+        );
+
+    const response = await fetch("/api/withdraw", {
+
+        method: "POST",
+
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            amount: amount
+        })
+
+    });
+
+    const data = await response.json();
+
+    document
+        .getElementById("withdrawMessage")
+        .textContent =
+        data.message || data.error;
+}
+
+
+// =========================
+// ログアウト
+// =========================
+
+function logout() {
+
+    token = null;
+
+    localStorage.removeItem(
+        "skybankToken"
+    );
+
+    showLogin();
+}
+
+
+// 起動時
+if (token) {
+    showMypage();
+} else {
+    showLogin();
+}
+
+</script>
+
+</body>
+</html>
