@@ -910,16 +910,37 @@ if (
     // =========================
 
     if (
-        req.method === "GET" &&
-        req.url === "/api/users"
-    ) {
+    req.method === "GET" &&
+    req.url === "/api/users"
+) {
 
-        const users = loadJSON(USERS_FILE);
+    const result = await pool.query(`
+        SELECT
+            id,
+            role,
+            savings,
+            fixed_deposit,
+            interest
+        FROM users
+    `);
 
-        sendJSON(res, 200, users);
+    const users = {
+        users: {}
+    };
 
-        return;
+    for (const row of result.rows) {
+        users.users[row.id] = {
+            role: row.role,
+            savings: row.savings,
+            fixedDeposit: row.fixed_deposit,
+            interest: row.interest
+        };
     }
+
+    sendJSON(res, 200, users);
+
+    return;
+}
 
 
 // =========================
