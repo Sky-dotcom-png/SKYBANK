@@ -92,6 +92,28 @@
             color: #c62828;
             margin-top: 10px;
         }
+
+        .success {
+            color: #2e7d32;
+            margin-top: 10px;
+        }
+
+        .account-card {
+            border: 1px solid #e1e5ea;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 12px;
+            background: #fafbfc;
+        }
+
+        .account-card p {
+            margin: 7px 0;
+        }
+
+        .account-role {
+            font-size: 13px;
+            color: #666;
+        }
     </style>
 </head>
 
@@ -164,6 +186,17 @@
         </button>
 
         <div id="interestConfigMessage"></div>
+
+    </div>
+
+    <!-- アカウント一覧 -->
+    <div class="card">
+
+        <h3>アカウント一覧</h3>
+
+        <div id="adminUsers">
+            アカウントを読み込んでいます...
+        </div>
 
     </div>
 
@@ -360,6 +393,14 @@
 
 
 <script>
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 let token = localStorage.getItem("skybankToken");
 let adminToken = null;
@@ -639,6 +680,7 @@ function showAdminPage() {
         .getElementById("adminPage")
         .classList.remove("hidden");
 
+    loadAdminUsers();
     loadAdminRequests();
     loadInterestConfig();
 }
@@ -758,54 +800,110 @@ async function loadInterestConfig() {
 }
 
 // =========================
-// 管理者：金利設定保存
+// 管理者：アカウント一覧
 // =========================
 
-async function updateInterestConfig() {
+async function loadAdminUsers() {
 
-    const rate =
-    Number(
-        document.getElementById(
-            "interestRateInput"
-        ).value
-    );
+    if (!adminToken) {
+        return;
+    }
 
-const intervalDays =
-    Number(
-        document.getElementById(
-            "interestIntervalInput"
-        ).value
-    );
+    const container =
+        document.getElementById("adminUsers");
 
-    const response = await fetch(
-        "/api/admin/interest-config",
-        {
-            method: "POST",
+    container.textContent =
+        "アカウントを読み込んでいます...";
 
-            headers: {
-                "Authorization":
-                    "Bearer " + adminToken,
-                "Content-Type":
-                    "application/json"
-            },
+    try {
 
-            body: JSON.stringify({
-                interestRate: rate / 100,
-                interestIntervalDays:
-                    intervalDays
-            })
+        const response =
+            await fetch(
+                "/api/admin/users",
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " + adminToken
+                    }
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            container.textContent =
+                data.error ||
+                "アカウントを取得できません";
+            return;
         }
-    );
 
-    const data = await response.json();
+        const users =
+            Array.isArray(data.users)
+                ? data.users
+                : [];
 
-    document
-        .getElementById(
-            "interestConfigMessage"
-        )
-        .textContent =
-        data.message || data.error;
+        container.innerHTML = "";
+
+        if (users.length === 0) {
+            container.textContent =
+                "アカウントはありません。";
+            return;
+        }
+
+        users.forEach(user => {
+
+            const div =
+                document.createElement("div");
+
+            div.className = "account-card";
+
+            const registrationDate =
+                user.registrationDate
+                    ? new Date(user.registrationDate)
+                        .toLocaleString("ja-JP")
+                    : "不明";
+
+            const nextInterestDate =
+                user.nextInterestDate
+                    ? new Date(user.nextInterestDate)
+                        .toLocaleString("ja-JP")
+                    : "未設定";
+
+            const nextInterestAmount =
+                user.nextInterestAmount !== null &&
+                user.nextInterestAmount !== undefined
+                    ? "¥" + Number(
+                        user.nextInterestAmount
+                    ).toLocaleString()
+                    : "未設定";
+
+            const role =
+                user.role === "admin"
+                    ? "管理者"
+                    : "ユーザー";
+
+            div.innerHTML = `
+                <p><strong>${escapeHTML(user.id)}</strong></p>
+                <p class="account-role">権限：${role}</p>
+                <p>預金残高：¥${Number(user.savings || 0).toLocaleString()}</p>
+                <p>登録日：${registrationDate}</p>
+                <p>次回利子付与予定日：${nextInterestDate}</p>
+                <p>次回利子金額：${nextInterestAmount}</p>
+            `;
+
+            container.appendChild(div);
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        container.textContent =
+            "サーバーに接続できません";
+    }
 }
+
 
 // =========================
 // 管理者：申請処理
@@ -850,6 +948,10 @@ async function processRequest(requestId, action) {
 function adminLogout() {
 
     adminToken = null;
+
+    localStorage.removeItem(
+        "skybankAdminToken"
+    );
 
     showLogin();
 }

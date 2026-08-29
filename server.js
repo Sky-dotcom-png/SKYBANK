@@ -6,11 +6,8 @@ const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
-});
+    connectionString: process.env.DATABASE_URL
+    });
 
 const CONFIG_FILE = path.join(__dirname, "config.json");
 
@@ -110,8 +107,27 @@ async function initDatabase() {
             role TEXT NOT NULL DEFAULT 'user',
             savings INTEGER NOT NULL DEFAULT 0,
             fixed_deposit INTEGER NOT NULL DEFAULT 0,
-            interest JSONB
+            interest JSONB,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+    `);
+
+    // 既存DBにも登録日を追加
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;
+    `);
+
+    await pool.query(`
+        UPDATE users
+        SET created_at = NOW()
+        WHERE created_at IS NULL;
+    `);
+
+    await pool.query(`
+        ALTER TABLE users
+        ALTER COLUMN created_at SET DEFAULT NOW(),
+        ALTER COLUMN created_at SET NOT NULL;
     `);
 
     await pool.query(`
@@ -143,7 +159,8 @@ async function getUserFromDB(userId) {
             role,
             savings,
             fixed_deposit,
-            interest
+            interest,
+            created_at
         FROM users
         WHERE id = $1
         `,
@@ -162,7 +179,8 @@ async function getUserFromDB(userId) {
         role: row.role,
         savings: row.savings,
         fixedDeposit: row.fixed_deposit,
-        interest: row.interest
+        interest: row.interest,
+        createdAt: row.created_at
     };
 }
 
@@ -408,10 +426,11 @@ const server = http.createServer(
                         role,
                         savings,
                         fixed_deposit,
-                        interest
+                        interest,
+                        created_at
                     )
                     VALUES
-                    ($1, $2, $3, $4, $5, $6)
+                    ($1, $2, $3, $4, $5, $6, $7)
                     `,
                     [
                         id,
@@ -419,7 +438,8 @@ const server = http.createServer(
                         "user",
                         0,
                         0,
-                        null
+                        null,
+                        new Date()
                     ]
                 );
 
@@ -1241,12 +1261,12 @@ const server = http.createServer(
             }
 
             // =========================
-            // ユーザー一覧
+            // 管理者：アカウント一覧
             // =========================
 
             if (
                 req.method === "GET" &&
-                req.url === "/api/users"
+                req.url === "/api/admin/users"
             ) {
 
                 const adminId =
@@ -1267,31 +1287,63 @@ const server = http.createServer(
                             role,
                             savings,
                             fixed_deposit,
-                            interest
+                            interest,
+                            created_at
                         FROM users
-                        ORDER BY id
+                        ORDER BY created_at ASC, id ASC
                     `);
 
-                const users = {
-                    users: {}
-                };
+                const users = result.rows.map(row => {
 
-                for (
-                    const row of result.rows
-                ) {
+                    const interest = row.interest;
+                    let nextInterestDate = null;
+                    let nextInterestAmount = null;
 
-                    users.users[row.id] = {
+                    if (
+                        interest &&
+                        interest.startDate
+                    ) {
+                        const lastDate =
+                            interest.lastAppliedDate ||
+                            interest.startDate;
+
+                        const intervalDays =
+                            Number(interest.intervalDays || 0);
+
+                        if (intervalDays > 0) {
+                            const nextDate =
+                                new Date(lastDate);
+
+                            nextDate.setDate(
+                                nextDate.getDate() +
+                                intervalDays
+                            );
+
+                            nextInterestDate =
+                                nextDate.toISOString();
+                        }
+
+                        nextInterestAmount =
+                            Math.floor(
+                                Number(interest.minimumBalance || 0) *
+                                Number(interest.rate || 0)
+                            );
+                    }
+
+                    return {
+                        id: row.id,
                         role: row.role,
-                        savings:
-                            row.savings,
-                        fixedDeposit:
-                            row.fixed_deposit,
-                        interest:
-                            row.interest
+                        savings: row.savings,
+                        fixedDeposit: row.fixed_deposit,
+                        registrationDate: row.created_at,
+                        nextInterestDate: nextInterestDate,
+                        nextInterestAmount: nextInterestAmount
                     };
-                }
+                });
 
-                sendJSON(res, 200, users);
+                sendJSON(res, 200, {
+                    users: users
+                });
 
                 return;
             }
